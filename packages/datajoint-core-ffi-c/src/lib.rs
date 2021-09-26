@@ -70,5 +70,6 @@ pub extern "C" fn connection_query(
         CStr::from_ptr(query)
     };
     let query_str = query.to_str().unwrap();
-    database.raw_query(query_str)
+    database.query(query_str);
+    0
 }

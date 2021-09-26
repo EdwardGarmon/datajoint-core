@@ -1,10 +1,11 @@
 
-use sqlx::postgres::{PgPoolOptions, PgPool, PgRow};
-use sqlx::mysql::MySqlPoolOptions;
-use tokio::runtime::Runtime;
-use std::rc::Rc;
-use sqlx::{Pool, Postgres, FromRow, Row};
+use sqlx::postgres::{PgPoolOptions};
 
+use tokio::runtime::Runtime;
+
+use sqlx::{Pool, Postgres};
+use crate::cursor::Cursor;
+use std::borrow::Borrow;
 
 
 pub struct Connection {
@@ -14,15 +15,15 @@ pub struct Connection {
     reset: bool,
     use_tls: bool,
     // TODO switch to the generic version of Pool and Pool Options
-    pool :  Option<Pool<Postgres>>,
+    pub pool :  Option<Pool<Postgres>>,
+    pub run_time : Runtime,
     options : PgPoolOptions,
-    run_time : Runtime
 }
 
 
 // TODO use jonny's settings module instead of a list of flat settings
 
-impl Connection {
+impl<'b> Connection{
     pub fn new(host: &str, user: &str, password: &str, reset: bool, use_tls: bool) -> Self {
         Connection {
             host: host.to_string(),
@@ -85,24 +86,21 @@ impl Connection {
     //      execute against a relational database server
     // No placeholder arguments (hard-coded into the queries for now)
 
-    // TODO have raw query return an executor / database cursor
-    pub fn raw_query(&self, query: &str) -> i32 {
-        println!("Making query from rust library: {}", query);
-        self.run_time.block_on(self.query_async(query))
+    // // TODO have raw query return an executor / database cursor
+    // pub fn raw_query(&self, query: &str) -> i32 {
+    //     println!("Making query from rust library: {}", query);
+    //     self.run_time.block_on(self.query_async(query))
+    //
+    // }
 
+
+    pub fn query(& 'b self, query: & 'b str) -> Box<Cursor> {
+
+        let mut cursor = Cursor::new(self);
+
+        cursor.execute(query);
+        Box::new(cursor)
     }
 
-    // TODO return an executor / database cursor
-    async fn query_async(&self, query : & str ) -> i32 {
 
-        println!("{}",query);
-
-        let row: (i32,) = sqlx::query_as(query)
-            .fetch_one(   self.pool.as_ref().unwrap())
-            .await.map_err(|e|{
-            println!("{:?} failed to fetch", e)
-        }).ok().unwrap();
-
-        row.0
-    }
 }
